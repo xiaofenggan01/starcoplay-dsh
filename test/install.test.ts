@@ -103,4 +103,19 @@ describe('mod installer', () => {
     expect(result.ok).toBe(true)
     expect(readFileSync(join(game, 'Mods', 'StarCoPlay', 'StarCoPlay.dll'), 'utf8')).toBe('win-dll')
   })
+
+  it.skipIf(process.env.STARCOPLAY_LIVE_INSTALL !== '1')(
+    'downloads and installs the public release asset',
+    async () => {
+      const { root, game } = makeLinuxGame()
+      const gamePaths = detectGamePaths({
+        platform: 'linux', home: root, env: { STARCOPLAY_GAME_PATH: game },
+      })
+      const result = await installMod({ gamePaths })
+      expect(result.ok).toBe(true)
+      expect(result.installedVersion).toBe('2.5.0')
+      expect(existsSync(join(game, 'Mods', 'StarCoPlay', 'StarCoPlay.dll'))).toBe(true)
+    },
+    30000,
+  )
 })
