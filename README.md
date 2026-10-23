@@ -26,8 +26,9 @@ Python, MCP, or protobuf codegen.
 ## Install
 
 1. Open DSH -> Plugins.
-2. Add the GitHub URL of this repository.
-3. Enable starcoplay-dsh.
+2. Add https://github.com/xiaofenggan01/starcoplay-dsh
+3. Enable starcoplay-dsh. The latest release of this repository carries the
+   StarCoPlay mod asset StarCoPlay.zip (currently mod v2.5.0).
 4. Talk to DSH. On the first turn it calls starcoplay_status. If the mod is
    missing, it calls starcoplay_install_mod, which shows a native confirmation
    dialog. Choose 安装最新版.
@@ -63,7 +64,11 @@ Game:
 Commit lib/index.js when publishing: DSH installs from GitHub without running
 build scripts, so the built bundle must be in the repository.
 
-Load the local package into a DSH profile:
+Install the published package into a DSH profile:
+
+    dsh plugin --profile desktop add github:xiaofenggan01/starcoplay-dsh
+
+Load a local checkout instead:
 
     dsh plugin --profile desktop add file:/absolute/path/to/starcoplay-dsh
 

@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "DeepSeek Harness plugin that lets DSH play Stardew Valley with you.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaofenggan01/starcoplay-dsh.git"
+  },
+  "homepage": "https://github.com/xiaofenggan01/starcoplay-dsh",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
