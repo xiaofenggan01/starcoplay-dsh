@@ -6,6 +6,8 @@ import { StarCoPlayRouteServer } from './route/server.js'
 import { registerStatusTool, type StatusSnapshot } from './tools/status.js'
 import { registerGameTools } from './tools/game.js'
 import { registerInstallModTool } from './tools/setup.js'
+import { registerLaunchGameTool } from './tools/launch.js'
+import { GameLauncher } from './game/launcher.js'
 import { SYSTEM_PROMPT } from './prompt.js'
 import { VERSION } from './version.js'
 
@@ -58,18 +60,21 @@ export async function apply(ctx: any, config: any = {}): Promise<void> {
     logInfo(ctx, 'route start failed: ' + routeError)
   }
 
+  const launcher = new GameLauncher()
   const getStatus = (): StatusSnapshot => {
     const game = detectGamePaths()
     return {
       pluginVersion: VERSION,
       route: { ...route.status(), lastError: routeError || route.status().lastError },
       game,
+      launcher: launcher.status(),
       bridgePlayerIds: listBridgePlayerIds(game.modsDir),
     }
   }
 
   registerStatusTool(ctx, getStatus)
   registerInstallModTool(ctx, getStatus)
+  registerLaunchGameTool(ctx, launcher)
   registerGameTools(ctx, route)
 
   try {

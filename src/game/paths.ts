@@ -12,6 +12,7 @@ export interface GamePaths {
   gameDir?: string
   modsDir?: string
   smapi: boolean
+  smapiPath?: string
   modDir?: string
   modVersion?: string
   error?: string
@@ -121,10 +122,12 @@ export function detectGamePaths(environment: GameEnvironment = {}): GamePaths {
   }
   const modsDir = modsDirFor(gameDir, platform)
   const modDir = join(modsDir, 'StarCoPlay')
+  const smapiPath = smapiPathFor(gameDir, platform)
   return {
     gameDir,
     modsDir,
-    smapi: existsSync(smapiPathFor(gameDir, platform)),
+    smapi: existsSync(smapiPath),
+    smapiPath: existsSync(smapiPath) ? smapiPath : undefined,
     modDir,
     modVersion: readModVersion(modDir),
   }

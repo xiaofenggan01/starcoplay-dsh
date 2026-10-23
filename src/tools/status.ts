@@ -13,10 +13,12 @@ export interface StatusSnapshot {
     gameDir?: string
     modsDir?: string
     smapi: boolean
+    smapiPath?: string
     modDir?: string
     modVersion?: string
     error?: string
   }
+  launcher: { running: boolean; pid?: number }
   bridgePlayerIds: string[]
 }
 

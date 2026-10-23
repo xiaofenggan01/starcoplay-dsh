@@ -3,8 +3,9 @@
 DeepSeek Harness plugin that lets DSH play Stardew Valley with you.
 
 Status: early preview. The plugin loads in DSH, starts a local route, exposes
-12 native game tools, and can install the StarCoPlay mod after a native
-confirmation dialog. Windows is not verified yet.
+12 native game tools, installs the StarCoPlay mod after a native confirmation
+dialog, and can launch a second SMAPI instance for co-op. Automatic co-op join
+is not enabled yet; Windows is not verified.
 
 ## What it does
 
@@ -37,8 +38,11 @@ Python, MCP, or protobuf codegen.
 ## Tools
 
 Setup:
-- starcoplay_status: game, SMAPI, mod version, route state.
+- starcoplay_status: game, SMAPI, mod version, route and launcher state.
 - starcoplay_install_mod: download/install the mod after a native confirmation.
+- starcoplay_launch_game: launch a second Stardew Valley instance via SMAPI
+  (no Steam single-instance lock). The player joins the co-op game in the new
+  window manually until automatic join lands.
 
 Game:
 - starcoplay_observe
@@ -53,6 +57,16 @@ Game:
 - starcoplay_go_bed
 - starcoplay_water_crops
 - starcoplay_harvest_crops
+
+## Co-op second window (V1)
+
+1. Open your own co-op save as the host (Steam/SMAPI).
+2. Ask DSH to open a second window; it calls starcoplay_launch_game.
+3. In the new window choose Co-op -> Join LAN -> your farm -> a cabin.
+4. Once the mod loads, the local route connects and the game tools work.
+
+Automatic co-op join and automatic AI target selection are V2; the second
+window still needs the one-time join click.
 
 ## Development
 
@@ -83,7 +97,8 @@ After rebuilding, remove the profile's node_modules copy and re-add the package
 
 - src/route: rendezvous file, WebSocket server, local_direct handshake,
   V2 JSON command/result frames, capability digest, serial command queue.
-- src/game: Steam/game/Mods/SMAPI detection and mod install.
+- src/game: Steam/game/Mods/SMAPI detection, mod install, and the second
+  SMAPI instance launcher.
 - src/tools: DSH native tools, including the install confirmation flow.
 - src/prompt.ts: companion system prompt.
 
@@ -109,6 +124,9 @@ The plugin and the mod are released separately:
   the latest asset.
 - Windows paths and file locks are not verified yet.
 - The first-run prompt happens on the first chat turn, not at plugin activation.
+- Automatic co-op join is deferred; the second window starts at the title screen.
+- TargetPlayerId is inferred from an existing bridge_* directory; a new AI
+  farmhand with a different player id still needs V2 target automation.
 
 ## Security
 
