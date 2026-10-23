@@ -87,6 +87,19 @@ After rebuilding, remove the profile's node_modules copy and re-add the package
 - src/tools: DSH native tools, including the install confirmation flow.
 - src/prompt.ts: companion system prompt.
 
+## Releasing
+
+The plugin and the mod are released separately:
+
+1. Build the mod from the main repository (Build & Release workflow).
+2. Upload the zip to the stable mod-latest tag:
+
+    gh release upload mod-latest /path/StarCoPlay.zip \
+      --repo xiaofenggan01/starcoplay-dsh --clobber
+
+3. Bump package.json and src/version.ts, run pnpm build, commit lib/index.js.
+4. Tag the plugin and create a GitHub release for the source snapshot.
+
 ## Known limitations
 
 - SMAPI is detected, not auto-installed.
