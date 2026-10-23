@@ -118,4 +118,21 @@ describe('mod installer', () => {
     },
     30000,
   )
+
+  it.skipIf(process.env.STARCOPLAY_LIVE_INSTALL !== '1')(
+    'falls back to curl when fetch fails',
+    async () => {
+      const { root, game } = makeLinuxGame()
+      const gamePaths = detectGamePaths({
+        platform: 'linux', home: root, env: { STARCOPLAY_GAME_PATH: game },
+      })
+      const failingFetch = (async () => {
+        throw new Error('forced fetch failure')
+      }) as unknown as typeof fetch
+      const result = await installMod({ gamePaths, fetchImpl: failingFetch })
+      expect(result.ok).toBe(true)
+      expect(result.installedVersion).toBe('2.5.0')
+    },
+    60000,
+  )
 })

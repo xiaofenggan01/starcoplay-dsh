@@ -1,7 +1,12 @@
 import AdmZip from 'adm-zip'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
+import { promisify } from 'node:util'
 import { detectGamePaths, listBridgePlayerIds, type GamePaths } from './paths.js'
+
+const execFileAsync = promisify(execFile)
 
 export const DEFAULT_MOD_ZIP_URL =
   'https://github.com/xiaofenggan01/starcoplay-dsh/releases/download/mod-latest/StarCoPlay.zip'
@@ -107,12 +112,49 @@ function mergeConfig(modRoot: string, modsDir: string, warnings: string[]): void
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 })
 }
 
-async function downloadZip(url: string, fetchImpl: typeof fetch): Promise<Buffer> {
-  const response = await fetchImpl(url, { redirect: 'follow' })
-  if (!response.ok) {
-    throw new Error('下载失败：HTTP ' + response.status + ' ' + response.statusText)
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = (error as Error & { cause?: unknown }).cause
+    const causeText = cause instanceof Error ? ' (' + cause.message + ')' : ''
+    return error.message + causeText
   }
-  return Buffer.from(await response.arrayBuffer())
+  return String(error)
+}
+
+async function downloadWithCurl(url: string): Promise<Buffer> {
+  const dir = mkdtempSync(join(tmpdir(), 'starcoplay-mod-'))
+  const file = join(dir, 'StarCoPlay.zip')
+  try {
+    await execFileAsync('curl', [
+      '--noproxy', '*',
+      '-L',
+      '--fail',
+      '--max-time', '180',
+      '-o', file,
+      url,
+    ])
+    return readFileSync(file)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+async function downloadZip(url: string, fetchImpl: typeof fetch): Promise<Buffer> {
+  try {
+    const response = await fetchImpl(url, { redirect: 'follow' })
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status + ' ' + response.statusText)
+    }
+    return Buffer.from(await response.arrayBuffer())
+  } catch (error) {
+    try {
+      return await downloadWithCurl(url)
+    } catch (curlError) {
+      throw new Error(
+        'fetch 失败：' + describeError(error) + '；curl 回退失败：' + describeError(curlError),
+      )
+    }
+  }
 }
 
 export async function installMod(options: InstallModOptions = {}): Promise<InstallModResult> {
