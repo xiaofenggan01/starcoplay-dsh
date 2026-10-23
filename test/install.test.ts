@@ -104,6 +104,23 @@ describe('mod installer', () => {
     expect(readFileSync(join(game, 'Mods', 'StarCoPlay', 'StarCoPlay.dll'), 'utf8')).toBe('win-dll')
   })
 
+  it.skipIf(!process.env.STARCOPLAY_MOD_ZIP)(
+    'installs the provided local mod zip',
+    async () => {
+      const { root, game } = makeLinuxGame()
+      const gamePaths = detectGamePaths({
+        platform: 'linux', home: root, env: { STARCOPLAY_GAME_PATH: game },
+      })
+      const result = await installMod({
+        zipPath: process.env.STARCOPLAY_MOD_ZIP,
+        gamePaths,
+      })
+      expect(result.ok).toBe(true)
+      expect(result.installedVersion).toBe('2.6.0')
+    },
+    30000,
+  )
+
   it.skipIf(process.env.STARCOPLAY_LIVE_INSTALL !== '1')(
     'downloads and installs the public release asset',
     async () => {
@@ -113,10 +130,10 @@ describe('mod installer', () => {
       })
       const result = await installMod({ gamePaths })
       expect(result.ok).toBe(true)
-      expect(result.installedVersion).toBe('2.5.0')
+      expect(result.installedVersion).toBe('2.6.0')
       expect(existsSync(join(game, 'Mods', 'StarCoPlay', 'StarCoPlay.dll'))).toBe(true)
     },
-    30000,
+    45000,
   )
 
   it.skipIf(process.env.STARCOPLAY_LIVE_INSTALL !== '1')(
@@ -131,7 +148,7 @@ describe('mod installer', () => {
       }) as unknown as typeof fetch
       const result = await installMod({ gamePaths, fetchImpl: failingFetch })
       expect(result.ok).toBe(true)
-      expect(result.installedVersion).toBe('2.5.0')
+      expect(result.installedVersion).toBe('2.6.0')
     },
     60000,
   )

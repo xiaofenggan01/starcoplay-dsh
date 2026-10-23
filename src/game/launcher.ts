@@ -2,16 +2,37 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { dirname } from 'node:path'
 import { detectGamePaths, type GamePaths } from './paths.js'
 
+export const MIN_MOD_VERSION = '2.6.0'
+
 export interface GameLaunchResult {
   ok: boolean
   message: string
   pid?: number
 }
 
+function versionParts(value: string): number[] {
+  const match = value.match(/\d+(?:\.\d+)*/)?.[0] ?? ''
+  return match.split('.').map((part) => Number.parseInt(part, 10) || 0)
+}
+
+export function versionAtLeast(current: string, minimum: string): boolean {
+  const a = versionParts(current)
+  const b = versionParts(minimum)
+  const length = Math.max(a.length, b.length)
+  for (let index = 0; index < length; index += 1) {
+    const left = a[index] ?? 0
+    const right = b[index] ?? 0
+    if (left > right) return true
+    if (left < right) return false
+  }
+  return true
+}
+
 export interface LauncherDeps {
   spawnImpl?: typeof spawn
   detectPaths?: () => GamePaths
   graceMs?: number
+  token?: string
 }
 
 export class GameLauncher {
@@ -19,11 +40,13 @@ export class GameLauncher {
   private readonly spawnImpl: typeof spawn
   private readonly detectPaths: () => GamePaths
   private readonly graceMs: number
+  private readonly token?: string
 
   constructor(deps: LauncherDeps = {}) {
     this.spawnImpl = deps.spawnImpl ?? spawn
     this.detectPaths = deps.detectPaths ?? (() => detectGamePaths())
     this.graceMs = Math.max(0, deps.graceMs ?? 1200)
+    this.token = deps.token
   }
 
   status(): { running: boolean; pid?: number } {
@@ -41,6 +64,16 @@ export class GameLauncher {
     if (!current.smapiPath) {
       return { ok: false, message: '没有检测到 SMAPI。第二个实例需要通过 SMAPI 启动，请先安装 SMAPI 4.x。' }
     }
+    if (!current.modVersion) {
+      return { ok: false, message: '没有检测到 StarCoPlay Mod。请先安装 Mod ' + MIN_MOD_VERSION + ' 或更新。' }
+    }
+    if (!versionAtLeast(current.modVersion, MIN_MOD_VERSION)) {
+      return {
+        ok: false,
+        message: '当前 Mod 版本 ' + current.modVersion + '，V2 需要 ' + MIN_MOD_VERSION +
+          ' 才支持实例 token 和自动目标；请先运行 Mod 安装/更新。',
+      }
+    }
     const running = this.status()
     if (running.running) {
       return { ok: true, message: '第二个星露谷实例已经在运行（PID=' + running.pid + '）。', pid: running.pid }
@@ -53,6 +86,9 @@ export class GameLauncher {
         detached: true,
         stdio: 'ignore',
         windowsHide: false,
+        env: this.token
+          ? { ...process.env, STARCOPLAY_LOCAL_DIRECT_TOKEN: this.token }
+          : process.env,
       })
     } catch (error) {
       return { ok: false, message: '启动 SMAPI 失败：' + (error instanceof Error ? error.message : String(error)) }

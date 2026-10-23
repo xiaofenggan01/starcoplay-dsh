@@ -17,6 +17,8 @@ export interface RendezvousMaterial extends LocalDirectFence {
   endpoint: string
   proof: string
   capability_entries: CapabilityEntry[]
+  require_token?: boolean
+  token?: string
 }
 
 export interface LocalCommandFrame {
@@ -39,6 +41,22 @@ export interface LocalCommandResult {
   error_code?: string | null
   accepted?: boolean | null
   control_id?: string | null
+}
+
+export interface LocalIdentity {
+  player_unique_id: string
+  player_name: string
+  is_ai_controlled: boolean
+  target_player_id?: string | null
+  revision: number
+}
+
+export interface LocalControlFrame {
+  type: 'local_control'
+  fence: LocalDirectFence
+  enabled: boolean
+  target_player_id: string
+  revision: number
 }
 
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED', 'TIMED_OUT', 'TIMEOUT'])
@@ -77,6 +95,31 @@ export function buildLocalCommand(
     wire_format: 'v2-json',
     deadline_at: (nowMs + timeoutMs) / 1000,
   }
+}
+
+export function buildLocalControl(
+  material: LocalDirectFence,
+  playerId: string,
+  revision: number,
+): LocalControlFrame {
+  if (!playerId) throw new Error('playerId is required')
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('revision must be a non-negative integer')
+  return {
+    type: 'local_control',
+    fence: fenceOf(material),
+    enabled: true,
+    target_player_id: playerId,
+    revision,
+  }
+}
+
+export function isLocalIdentity(value: unknown): value is LocalIdentity {
+  if (typeof value !== 'object' || value === null) return false
+  const frame = value as Record<string, unknown>
+  return frame.type === 'local_identity' &&
+    typeof frame.player_unique_id === 'string' &&
+    frame.player_unique_id.length > 0 &&
+    (frame.revision === undefined || typeof frame.revision === 'number')
 }
 
 export function isTerminalState(state: string): boolean {

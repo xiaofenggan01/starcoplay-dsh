@@ -60,7 +60,7 @@ export async function apply(ctx: any, config: any = {}): Promise<void> {
     logInfo(ctx, 'route start failed: ' + routeError)
   }
 
-  const launcher = new GameLauncher()
+  const launcher = new GameLauncher({ token: route.sessionToken })
   const getStatus = (): StatusSnapshot => {
     const game = detectGamePaths()
     return {

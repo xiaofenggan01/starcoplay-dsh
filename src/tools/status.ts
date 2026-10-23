@@ -8,6 +8,13 @@ export interface StatusSnapshot {
     endpoint?: string
     rendezvousPath: string
     lastError?: string
+    identity?: {
+      player_unique_id: string
+      player_name: string
+      is_ai_controlled: boolean
+      target_player_id?: string | null
+      revision: number
+    }
   }
   game: {
     gameDir?: string

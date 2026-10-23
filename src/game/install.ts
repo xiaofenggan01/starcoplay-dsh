@@ -140,8 +140,11 @@ async function downloadWithCurl(url: string): Promise<Buffer> {
 }
 
 async function downloadZip(url: string, fetchImpl: typeof fetch): Promise<Buffer> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000)
+  timer.unref?.()
   try {
-    const response = await fetchImpl(url, { redirect: 'follow' })
+    const response = await fetchImpl(url, { redirect: 'follow', signal: controller.signal })
     if (!response.ok) {
       throw new Error('HTTP ' + response.status + ' ' + response.statusText)
     }
@@ -154,6 +157,8 @@ async function downloadZip(url: string, fetchImpl: typeof fetch): Promise<Buffer
         'fetch 失败：' + describeError(error) + '；curl 回退失败：' + describeError(curlError),
       )
     }
+  } finally {
+    clearTimeout(timer)
   }
 }
 

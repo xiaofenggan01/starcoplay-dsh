@@ -16,6 +16,7 @@ function paths(overrides: Partial<GamePaths> = {}): GamePaths {
     gameDir: '/game',
     smapi: true,
     smapiPath: '/game/StardewModdingAPI',
+    modVersion: '2.6.0',
     ...overrides,
   }
 }
@@ -23,12 +24,13 @@ function paths(overrides: Partial<GamePaths> = {}): GamePaths {
 describe('second instance launcher', () => {
   it('launches SMAPI from the detected game directory', async () => {
     const child = new FakeChild()
-    const calls: Array<{ command: string; args: string[] }> = []
+    const calls: Array<{ command: string; args: string[]; env?: NodeJS.ProcessEnv }> = []
     const launcher = new GameLauncher({
       graceMs: 10,
+      token: 'route-token',
       detectPaths: () => paths(),
-      spawnImpl: ((command: string, args: string[]) => {
-        calls.push({ command, args })
+      spawnImpl: ((command: string, args: string[], options: { env?: NodeJS.ProcessEnv }) => {
+        calls.push({ command, args, env: options.env })
         setImmediate(() => child.emit('spawn'))
         return child as any
       }) as any,
@@ -37,7 +39,9 @@ describe('second instance launcher', () => {
     const result = await launcher.launch()
     expect(result.ok).toBe(true)
     expect(result.pid).toBe(4242)
-    expect(calls).toEqual([{ command: '/game/StardewModdingAPI', args: [] }])
+    expect(calls[0].command).toBe('/game/StardewModdingAPI')
+    expect(calls[0].args).toEqual([])
+    expect(calls[0].env?.STARCOPLAY_LOCAL_DIRECT_TOKEN).toBe('route-token')
     expect(launcher.status().running).toBe(true)
   })
 
@@ -68,6 +72,16 @@ describe('second instance launcher', () => {
     const result = await launcher.launch()
     expect(result.ok).toBe(false)
     expect(result.message).toContain('SMAPI')
+  })
+
+  it('refuses an older mod build that lacks the V2 token', async () => {
+    const launcher = new GameLauncher({
+      detectPaths: () => paths({ modVersion: '2.5.0' }),
+      spawnImpl: (() => { throw new Error('should not spawn') }) as any,
+    })
+    const result = await launcher.launch()
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain('2.6.0')
   })
 
   it('reports an immediate spawn error', async () => {

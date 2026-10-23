@@ -7,9 +7,12 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { computeCapabilitySnapshotDigest, type CapabilityEntry } from './digest.js'
 import {
   buildLocalCommand,
+  buildLocalControl,
   isLocalCommandResult,
+  isLocalIdentity,
   isTerminalState,
   type LocalCommandResult,
+  type LocalIdentity,
   type RendezvousMaterial,
 } from './protocol.js'
 
@@ -42,6 +45,7 @@ export interface RouteStatus {
   rendezvousPath: string
   lastError?: string
   connectedAt?: number
+  identity?: LocalIdentity
 }
 
 interface PendingCommand {
@@ -67,6 +71,8 @@ export class StarCoPlayRouteServer {
   private running = false
   private lastError?: string
   private connectedAt?: number
+  private identity?: LocalIdentity
+  private lastControlKey?: string
 
   constructor(options: RouteServerOptions) {
     this.options = options
@@ -85,7 +91,14 @@ export class StarCoPlayRouteServer {
       lease_epoch: 1,
       capability_digest: computeCapabilitySnapshotDigest(entries),
       capability_entries: entries,
+      require_token: true,
+      token: randomBytes(32).toString('base64url'),
     }
+  }
+
+  /** Token the launched SMAPI child must carry to be accepted. */
+  get sessionToken(): string {
+    return this.material.token ?? ''
   }
 
   status(): RouteStatus {
@@ -96,6 +109,7 @@ export class StarCoPlayRouteServer {
       rendezvousPath: this.options.rendezvousPath,
       lastError: this.lastError,
       connectedAt: this.connectedAt,
+      identity: this.identity,
     }
   }
 
@@ -230,14 +244,24 @@ export class StarCoPlayRouteServer {
         try { connection.socket.close(1008, 'invalid proof') } catch { /* ignore */ }
         return
       }
+      if (this.material.require_token && value.token !== this.material.token) {
+        this.log('rejected local_direct_hello: invalid instance token')
+        try { connection.socket.close(1008, 'invalid token') } catch { /* ignore */ }
+        return
+      }
       clearTimeout(connection.helloDeadline)
       connection.ready = true
       this.connectedAt = Date.now()
+      this.lastControlKey = undefined
       connection.socket.send(JSON.stringify({
         type: 'local_direct_ready',
         reconnect_proof: randomBytes(32).toString('base64url'),
       }))
       this.log('game connected via local_direct')
+      return
+    }
+    if (isLocalIdentity(value)) {
+      this.handleIdentity(value)
       return
     }
     if (isLocalCommandResult(value)) {
@@ -248,6 +272,30 @@ export class StarCoPlayRouteServer {
       clearTimeout(pending.timer)
       this.pending.delete(value.command_id)
       pending.resolve({ ...value, state })
+    }
+  }
+
+  private handleIdentity(identity: LocalIdentity): void {
+    this.identity = identity
+    const playerId = identity.player_unique_id
+    if (!playerId) return
+    const currentTarget = typeof identity.target_player_id === 'string'
+      ? identity.target_player_id
+      : null
+    if (identity.is_ai_controlled && currentTarget === playerId) return
+    const revision = Number.isSafeInteger(identity.revision)
+      ? Math.max(0, identity.revision) + 1
+      : 1
+    const key = playerId + ':' + revision
+    if (this.lastControlKey === key) return
+    const connection = this.connection
+    if (!connection?.ready || connection.socket.readyState !== WebSocket.OPEN) return
+    try {
+      connection.socket.send(JSON.stringify(buildLocalControl(this.material, playerId, revision)))
+      this.lastControlKey = key
+      this.log('sent local_control target=' + playerId + ' revision=' + revision)
+    } catch (error) {
+      this.log('local_control send failed: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
