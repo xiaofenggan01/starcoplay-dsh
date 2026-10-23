@@ -4,7 +4,7 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { detectGamePaths, listBridgePlayerIds, type GamePaths } from './paths.js'
 
 export const DEFAULT_MOD_ZIP_URL =
-  'https://github.com/xiaofenggan01/starcoplay-dsh/releases/latest/download/StarCoPlay.zip'
+  'https://github.com/xiaofenggan01/starcoplay-dsh/releases/download/mod-latest/StarCoPlay.zip'
 
 export interface InstallModOptions {
   zipBuffer?: Buffer
